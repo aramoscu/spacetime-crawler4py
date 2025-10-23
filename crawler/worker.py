@@ -5,7 +5,7 @@ from utils.download import download
 from utils import get_logger
 from urllib.parse import urlparse
 from hashlib import sha256
-from scraper import scraper, extract_crawler_delay
+from scraper import scraper, check_dead_urls
 import time
 import shelve
 from urllib.robotparser import RobotFileParser
@@ -48,12 +48,13 @@ class Worker(Thread):
                 wait = self.save_content[hash_domain][0] - delta_time
                 time.sleep(wait)
             resp = download(tbd_url, self.config, self.logger)
-            self.logger.info(
+            if resp.status == 200 and len(resp.raw_response.content) > 0:
+                self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")
-            scraped_urls = scraper.scraper(tbd_url, resp, self.save_content)
-            for scraped_url in scraped_urls:
-                self.frontier.add_url(scraped_url)
+                scraped_urls = scraper.scraper(tbd_url, resp, self.save_content)
+                for scraped_url in scraped_urls:
+                    self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
             self.save_content[hash_domain][1] = time.time()
             self.save_content.sync()

@@ -19,20 +19,21 @@ def extract_next_links(url, resp, save_content):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     valid_links = list()
-    if resp.status == 200:
-        # response was good
-        html_page = BeautifulSoup(resp.raw_response.content, 'html.parser')
-        hash_html_page_content = sha256(html_page.get_text())
-        if hash_html_page_content not in save_content: # avoid exact duplication of html pages
-            save_content[hash_html_page_content] = html_page.get_text()
-            save_content.sync()
-            for link in html_page.find_all('a'): # extract urls from anchor tags
-                href_link = link.get('href')
-                if href_link:
-                    full_link = urljoin(resp.raw_response.url, href_link)
-                    defragmented_link = normalize(urlparse(full_link)._replace(fragment="").geturl())
-                    if is_valid(defragmented_link):
-                        valid_links.append(defragmented_link)
+    html_page = BeautifulSoup(resp.raw_response.content, 'html.parser')
+    html_page_text = html_page.get_text()
+    if low_information_detector(resp.raw_response.content, html_page_text):
+        return list()
+    hash_html_page_content = sha256(html_page.get_text())
+    if hash_html_page_content not in save_content: # avoid exact duplication of html pages
+        save_content[hash_html_page_content] = html_page_text
+        save_content.sync()
+        for link in html_page.find_all('a'): # extract urls from anchor tags
+            href_link = link.get('href')
+            if href_link:
+                full_link = urljoin(resp.raw_response.url, href_link)
+                defragmented_link = normalize(urlparse(full_link)._replace(fragment="").geturl())
+                if is_valid(defragmented_link):
+                    valid_links.append(defragmented_link)
     return valid_links
 
 def is_valid(url):
@@ -60,3 +61,12 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+def low_information_detector(raw_html_page, text_html_page):
+    text_ratio_threshold = 0.10
+    min_words_ratio = 200
+    html_text_ratio = len(text_html_page) / len(raw_html_page)
+    num_words_in_text = len(text_html_page.split())
+    if html_text_ratio < text_ratio_threshold or num_words_in_text < min_words_ratio: # if size of text in raw resposne is less than 10 percent, avoid the page
+        return True
+    return False
