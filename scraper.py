@@ -2,12 +2,13 @@ import re
 from urllib.parse import urlparse, urljoin
 from utils import normalize
 from bs4 import BeautifulSoup
+from hashlib import sha256
 
-def scraper(url, resp):
-    links = extract_next_links(url, resp)
+def scraper(url, resp, save_content):
+    links = extract_next_links(url, resp, save_content)
     return [link for link in links if is_valid(link)] # if link in links is valid, then keep in list and return all
 
-def extract_next_links(url, resp):
+def extract_next_links(url, resp, save_content):
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -21,13 +22,17 @@ def extract_next_links(url, resp):
     if resp.status == 200:
         # response was good
         html_page = BeautifulSoup(resp.raw_response.content, 'html.parser')
-        for link in html_page.find_all('a'): # extract urls from anchor tags
-            href_link = link.get('href')
-            if href_link:
-                full_link = urljoin(resp.raw_response.url, href_link)
-                defragmented_link = normalize(urlparse(full_link)._replace(fragment="").geturl())
-                if is_valid(defragmented_link):
-                    valid_links.append(defragmented_link)
+        hash_html_page_content = sha256(html_page.get_text())
+        if hash_html_page_content not in save_content: # avoid exact duplication of html pages
+            save_content[hash_html_page_content] = html_page.get_text()
+            save_content.sync()
+            for link in html_page.find_all('a'): # extract urls from anchor tags
+                href_link = link.get('href')
+                if href_link:
+                    full_link = urljoin(resp.raw_response.url, href_link)
+                    defragmented_link = normalize(urlparse(full_link)._replace(fragment="").geturl())
+                    if is_valid(defragmented_link):
+                        valid_links.append(defragmented_link)
     return valid_links
 
 def is_valid(url):
