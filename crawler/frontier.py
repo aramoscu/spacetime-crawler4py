@@ -70,3 +70,10 @@ class Frontier(object):
 
         self.save[urlhash] = (url, True)
         self.save.sync()
+
+    def complete_robots_url(self, url):
+        urlhash = get_urlhash(url)
+        if urlhash not in self.save:
+            self.save[urlhash] = (url, False)
+            self.save.sync()
+        self.mark_url_complete(url)

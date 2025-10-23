@@ -3,9 +3,12 @@ from threading import Thread
 from inspect import getsource
 from utils.download import download
 from utils import get_logger
-import scraper
+from urllib.parse import urlparse
+from hashlib import sha256
+from scraper import scraper, extract_crawler_delay
 import time
 import shelve
+from urllib.robotparser import RobotFileParser
 
 
 class Worker(Thread):
@@ -25,6 +28,25 @@ class Worker(Thread):
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
                 break
+            # deal with robots.txt file for current domain
+            tbd_parsed = urlparse(tbd_url)
+            domain = f".{".".join(tbd_parsed.netloc.split(".")[-3:])}"
+            hash_domain = sha256(domain)
+            if hash_domain not in self.save_content:
+                robots_url = f"{tbd_parsed.scheme}://{tbd_parsed.netloc}/robots.txt" 
+                robot_parser = RobotFileParser()
+                robot_parser.set_url(robots_url)
+                robot_parser.read()
+                delay = robot_parser.crawl_delay(self.config.user_agent)
+                self.save_content[hash_domain] = [delay if delay is not None else 0.0, time.time()] # [delay, last_accessed]
+                self.save_content.sync()
+                self.frontier.complete_robots_url(robots_url)
+            current_time = time.time()
+            last_accessed_time = self.save_content[hash_domain][1]
+            delta_time = current_time - last_accessed_time
+            if delta_time < self.save_content[hash_domain][0]:
+                wait = self.save_content[hash_domain][0] - delta_time
+                time.sleep(wait)
             resp = download(tbd_url, self.config, self.logger)
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
@@ -33,4 +55,6 @@ class Worker(Thread):
             for scraped_url in scraped_urls:
                 self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
+            self.save_content[hash_domain][1] = time.time()
+            self.save_content.sync()
             time.sleep(self.config.time_delay)
