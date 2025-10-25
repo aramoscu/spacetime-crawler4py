@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urlunparse
 from utils import normalize
 from bs4 import BeautifulSoup
 from hashlib import sha256
@@ -31,7 +31,7 @@ def extract_next_links(url, resp, save_content):
             href_link = link.get('href')
             if href_link:
                 full_link = urljoin(resp.raw_response.url, href_link)
-                defragmented_link = normalize(urlparse(full_link)._replace(fragment="").geturl())
+                defragmented_link = normalize(urlunparse(urlparse(full_link)._replace(fragment="")))
                 if is_valid(defragmented_link):
                     valid_links.append(defragmented_link)
     return valid_links

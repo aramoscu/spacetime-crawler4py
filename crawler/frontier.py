@@ -4,7 +4,7 @@ import shelve
 from threading import Thread, RLock
 from queue import Queue, Empty
 
-from utils import get_logger, get_urlhash, normalize
+from utils import get_logger, get_urlhash, normalize, sort_query_parameters, remove_nonfunctional_params, check_max_depth
 from scraper import is_valid
 
 class Frontier(object):
@@ -55,11 +55,14 @@ class Frontier(object):
 
     def add_url(self, url):
         url = normalize(url)
-        urlhash = get_urlhash(url)
-        if urlhash not in self.save:
-            self.save[urlhash] = (url, False)
-            self.save.sync()
-            self.to_be_downloaded.append(url)
+        url = sort_query_parameters(url) # prevent infinte traps
+        url = remove_nonfunctional_params(url) # prevent infinite traps
+        if not check_max_depth(url): # make sure that crawler isn't going into infinite depth
+            urlhash = get_urlhash(url)
+            if urlhash not in self.save:
+                self.save[urlhash] = (url, False)
+                self.save.sync()
+                self.to_be_downloaded.append(url)
     
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)
