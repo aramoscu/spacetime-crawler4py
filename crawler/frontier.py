@@ -1,5 +1,6 @@
 import os
 import shelve
+import glob
 
 from threading import Thread, RLock
 from queue import Queue, Empty
@@ -23,6 +24,8 @@ class Frontier(object):
             self.logger.info(
                 f"Found save file {self.config.save_file}, deleting it.")
             os.remove(self.config.save_file)
+        if restart:
+            self.remove_complete_shelve_file("worker.save_content")
         # Load existing save file, or create one if it does not exist.
         self.save = shelve.open(self.config.save_file)
         if restart:
@@ -51,6 +54,7 @@ class Frontier(object):
         try:
             return self.to_be_downloaded.pop()
         except IndexError:
+            self.save.close() # all urls have been crawled close the save file
             return None
 
     def add_url(self, url):
@@ -80,3 +84,11 @@ class Frontier(object):
             self.save[urlhash] = (url, False)
             self.save.sync()
         self.mark_url_complete(url)
+    
+    def remove_complete_shelve_file(self, filename):
+        for file in glob.glob(f'{filename}'):
+            if os.path.exists(file):
+                try:
+                    os.remove(file)
+                except Exception as e:
+                    print(f"Error removing {file}: {e}")

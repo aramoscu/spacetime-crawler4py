@@ -19,21 +19,23 @@ def extract_next_links(url, resp, save_content):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     valid_links = list()
-    html_page = BeautifulSoup(resp.raw_response.content, 'html.parser')
-    html_page_text = html_page.get_text()
-    if low_information_detector(resp.raw_response.content, html_page_text):
-        return list()
-    hash_html_page_content = sha256(html_page.get_text())
-    if hash_html_page_content not in save_content: # avoid exact duplication of html pages
-        save_content[hash_html_page_content] = html_page_text
-        save_content.sync()
-        for link in html_page.find_all('a'): # extract urls from anchor tags
-            href_link = link.get('href')
-            if href_link:
-                full_link = urljoin(resp.raw_response.url, href_link)
-                defragmented_link = normalize(urlunparse(urlparse(full_link)._replace(fragment="")))
-                if is_valid(defragmented_link):
-                    valid_links.append(defragmented_link)
+    if resp.raw_response is not None:
+        html_page = BeautifulSoup(resp.raw_response.content, 'html.parser')
+        html_page_text = html_page.get_text()
+        if low_information_detector(resp.raw_response.content, html_page_text):
+            return list()
+        hash_html_page_content = sha256(html_page.get_text())
+        if hash_html_page_content not in save_content: # avoid exact duplication of html pages
+            save_content[hash_html_page_content] = html_page_text
+            save_content["unique_pages"] += 1
+            save_content.sync()
+            for link in html_page.find_all('a'): # extract urls from anchor tags
+                href_link = link.get('href')
+                if href_link:
+                    full_link = urljoin(resp.raw_response.url, href_link)
+                    defragmented_link = normalize(urlunparse(urlparse(full_link)._replace(fragment="")))
+                    if is_valid(defragmented_link):
+                        valid_links.append(defragmented_link)
     return valid_links
 
 def is_valid(url):

@@ -17,6 +17,9 @@ class Worker(Thread):
         self.config = config
         self.frontier = frontier
         self.save_content = shelve.open("worker.save_content")
+        self.save_content["longest_page_length"] = ["", 0]
+        self.save_content["unique_pages"] = 0
+        self.save_content.sync()
         # basic check for requests in scraper
         assert {getsource(scraper).find(req) for req in {"from requests import", "import requests"}} == {-1}, "Do not use requests in scraper.py"
         assert {getsource(scraper).find(req) for req in {"from urllib.request import", "import urllib.request"}} == {-1}, "Do not use urllib.request in scraper.py"
@@ -48,7 +51,10 @@ class Worker(Thread):
                 wait = self.save_content[hash_domain][0] - delta_time
                 time.sleep(wait)
             resp = download(tbd_url, self.config, self.logger)
-            if resp.status == 200 and len(resp.raw_response.content) > 0:
+            page_length = 0 if resp.raw_response is None else len(resp.raw_response.content)
+            if resp.status == 200 and page_length > 0:
+                self.save_content["longest_page"][0] = tbd_url if page_length > self.save_content["longest_page"][1] else self.save_content["longest_page"][0]
+                self.save_content["longest_page"][1] = page_length if page_length > self.save_content["longest_page"][1] else self.save_content["longest_page"][1]
                 self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")
@@ -59,3 +65,4 @@ class Worker(Thread):
             self.save_content[hash_domain][1] = time.time()
             self.save_content.sync()
             time.sleep(self.config.time_delay)
+        self.save_content.close()
