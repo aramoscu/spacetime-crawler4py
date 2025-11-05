@@ -5,15 +5,24 @@ from utils.server_registration import get_cache_server
 from utils.config import Config
 from crawler import Crawler
 from crawler.result import Result
+import sys
 
 
 def main(config_file, restart):
-    cparser = ConfigParser()
-    cparser.read(config_file)
-    config = Config(cparser)
-    config.cache_server = get_cache_server(config, restart)
-    crawler = Crawler(config, restart)
-    crawler.start()
+    crawler = None
+    try:
+        cparser = ConfigParser()
+        cparser.read(config_file)
+        config = Config(cparser)
+        config.cache_server = get_cache_server(config, restart)
+        crawler = Crawler(config, restart)
+        crawler.start()
+    except KeyboardInterrupt:
+        crawler.shelve_file().close()
+        crawler.worker_content().close()
+        result = Result(config)
+        result.print_results()
+        sys.exit(0)
     result = Result(config)
     result.print_results()
 

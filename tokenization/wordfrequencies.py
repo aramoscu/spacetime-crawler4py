@@ -6,15 +6,15 @@ class WordFrequencies:
     def tokenize(self, content, uncounted_words):
         token_list = []
         left = 0
-        content_size = len(self.content)
+        content_size = len(content)
         while left < content_size:
             try:
-                if self.content[left].isalnum() and self.content[left].isascii():
+                if content[left].isalnum() and content[left].isascii():
                     right = left
-                    while right < content_size and self.content[right].isalnum() and self.content[right].isascii():
+                    while right < content_size and (content[right].isalnum() or content[right] in "'–-") and content[right].isascii():
                         right += 1
-                    word = self.content[left:right].lower()
-                    if word not in uncounted_words:
+                    word = content[left:right].lower()
+                    if word not in uncounted_words and len(word) > 1:
                         token_list.append(word)
                     left = right
                 else:

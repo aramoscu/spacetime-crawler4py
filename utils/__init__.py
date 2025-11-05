@@ -35,12 +35,14 @@ def normalize(url):
     return url
 
 def remove_nonfunctional_params(url):
+    trap_params = {"tribe-bar-date", "page", "paged", "list_page"}
     non_functional_params = {"utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "sessionid",
                              "jsessionid", "sid", "ref", "gclid", "fbclid", "ts", "v"}
+    params_to_remove = non_functional_params.union(trap_params)
     try:
         parsed_url = urlparse(url)
         query_list = parse_qsl(parsed_url.query, keep_blank_values=True)
-        filtered_query_list = [(key, value) for key, value in query_list if key.lower() not in non_functional_params]
+        filtered_query_list = [(key, value) for key, value in query_list if key.lower() not in params_to_remove]
         filtered_query = urlencode(filtered_query_list)
         filtered_url = urlunparse(parsed_url._replace(query=filtered_query))
         return filtered_url

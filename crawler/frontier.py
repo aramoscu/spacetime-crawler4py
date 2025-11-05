@@ -92,3 +92,6 @@ class Frontier(object):
                     os.remove(file)
                 except Exception as e:
                     print(f"Error removing {file}: {e}")
+
+    def shelve_file(self):
+        return self.save

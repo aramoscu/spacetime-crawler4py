@@ -9,12 +9,15 @@ class Crawler(object):
         self.frontier = frontier_factory(config, restart)
         self.workers = list()
         self.worker_factory = worker_factory
+        self.worker_file = None
 
     def start_async(self):
         self.workers = [
             self.worker_factory(worker_id, self.config, self.frontier)
             for worker_id in range(self.config.threads_count)]
         for worker in self.workers:
+            if self.worker_file is None:
+                self.worker_file = worker.worker_content()
             worker.start()
 
     def start(self):
@@ -24,3 +27,9 @@ class Crawler(object):
     def join(self):
         for worker in self.workers:
             worker.join()
+    
+    def shelve_file(self):
+        return self.frontier.shelve_file()
+
+    def worker_content(self):
+        return self.worker_file
